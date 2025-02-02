@@ -1,13 +1,15 @@
 const express = require('express');
-const User = require('./models/User'); 
+const User = require('../models/user'); 
+const Excercise = require('../models/excercise');
 const router = express.Router();
 
 router.post('/users', async (req, res)=> {
     const {username} = req.body;
     try {
-        const user = new User();
-        await user.save({username});
-        res.status(201).json(user);
+        console.log('username', username);
+        const user = new User({username});
+        await user.save();
+        res.status(201).json({username: user.username, _id: user._id});
     } catch (error) {
         res.status(400).json({ message: error.message });
 
@@ -15,36 +17,53 @@ router.post('/users', async (req, res)=> {
 })
 
 router.post('/users/:userId/exercises', async (req, res) => {
-    const { title, description, duration } = req.body;
+    const { date, description, duration } = req.body;
+    const {userId} = req.params;
 
     try {
-        const user = await User.findById(req.params.userId);
+        const user = await User.findById(userId);
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
 
-        const newExercise = {
-            title,
+        const excerciseData = {
             description,
             duration,
+            date: new Date(date),
+            userId
         };
 
-        user.exercises.push(newExercise);
-        await user.save();
-
-        res.status(201).json({...newExercise, _id: user._id, username: user.username});
+        const newExercise = new Exercise(excerciseData);
+        await newExercise.save();
+        res.status(201).json({
+            ...excerciseData, 
+            _id: user._id, 
+            username: user.username,
+            date: newExercise.date
+        });
     } catch (error) {
         res.status(400).json({ message: error.message });
     }
 });
 
-// Получение всех упражнений пользователя
+router.get('/users', async (req, res) => {
+    try {
+        const users = await User.find();
+        res.status(200).json(users);
+    } catch(error) {
+        res.status(500).json({ message: error.message });
+
+    }
+})
+
 router.get('/users/:userId/logs', async (req, res) => {
     try {
         const user = await User.findById(req.params.userId);
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
+
+        const excercises = await Excercise.find()
 
         res.json(
             {
