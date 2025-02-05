@@ -1,6 +1,7 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const User = require('../models/user'); 
-const Excercise = require('../models/excercise');
+const Exercise = require('../models/exercise');
 const router = express.Router();
 
 router.post('/users', async (req, res)=> {
@@ -21,7 +22,7 @@ router.post('/users/:userId/exercises', async (req, res) => {
     const {userId} = req.params;
 
     try {
-        const user = await User.findById(userId);
+        const user = await User.findById(userId).populate('log');
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
@@ -33,8 +34,9 @@ router.post('/users/:userId/exercises', async (req, res) => {
             userId
         };
 
-        const newExercise = new Exercise(excerciseData);
-        await newExercise.save();
+        const newExercise = await Exercise.create(excerciseData);
+        user.log.push(newExercise);
+        await user.save();
         res.status(201).json({
             ...excerciseData, 
             _id: user._id, 
@@ -58,19 +60,45 @@ router.get('/users', async (req, res) => {
 
 router.get('/users/:userId/logs', async (req, res) => {
     try {
-        const user = await User.findById(req.params.userId);
+        const {from, to, limit = 20} = req.query;
+        const {userId} = req.params;
+        const user = await User.findById(userId).populate({
+            path: 'log',
+            model: 'Exercise',
+            select:'description duration date -_id',
+            // match: { 
+            //     date: { $gte: from, $lte: to }
+            // },
+            match: {},
+            options: {
+                limit: limit
+            },
+            strictPopulate: false
+        });
+
         if (!user) {
-            return res.status(404).json({ message: 'User not found' });
+            throw new Error('Пользователь не найден');
         }
 
-        const excercises = await Excercise.find()
+        let log; 
+        if (user && user.log) {
+            console.log('user log', user.log)
+            log = user.log.map((el) => {
+                return {
+                    description: el.description,
+                    duration: el.duration,
+                    date: el.date
+                } 
+            });
+            console.log('after', log)
+        }
 
         res.json(
             {
-            username: user.username,
-            count: user.exercises.length,
-            _id: user._id,
-            log: user.exercises
+                username: user.username,
+                _id: user._id,
+                log,
+                count: log.length
           }
           );
     } catch (error) {

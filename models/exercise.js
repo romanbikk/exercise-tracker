@@ -25,6 +25,6 @@ const exerciseSchema = new mongoose.Schema({
     { toJSON: { getters: true } 
 });
 
-const Excercise = mongoose.model('Excercise', exerciseSchema);
+const Exercise = mongoose.model('Exercise', exerciseSchema);
 
-module.exports = Excercise;
+module.exports = Exercise;

@@ -6,6 +6,7 @@ const userSchema = new mongoose.Schema({
         required: true,
         unique: true,
     },
+    log: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Exercise' }]
 });
 
 const User = mongoose.model('User', userSchema);
