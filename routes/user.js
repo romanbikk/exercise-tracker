@@ -30,7 +30,7 @@ router.post('/users/:userId/exercises', async (req, res) => {
         const excerciseData = {
             description,
             duration,
-            date: new Date(date),
+            date: date ? new Date(date): new Date(),
             userId
         };
 
@@ -38,7 +38,8 @@ router.post('/users/:userId/exercises', async (req, res) => {
         user.log.push(newExercise);
         await user.save();
         res.status(201).json({
-            ...excerciseData, 
+            description,
+            duration: newExercise.duration,
             _id: user._id, 
             username: user.username,
             date: newExercise.date
@@ -60,16 +61,19 @@ router.get('/users', async (req, res) => {
 
 router.get('/users/:userId/logs', async (req, res) => {
     try {
-        const {from, to, limit = 20} = req.query;
+        const {from, to, limit} = req.query;
         const {userId} = req.params;
+        console.log('from', from)
+        console.log('to', to)
+        console.log('limit', limit);
+
+        const match = from ? {date: { $gte: from, $lte: to }} : {}
+
         const user = await User.findById(userId).populate({
             path: 'log',
             model: 'Exercise',
             select:'description duration date -_id',
-            // match: { 
-            //     date: { $gte: from, $lte: to }
-            // },
-            match: {},
+            match,
             options: {
                 limit: limit
             },
@@ -82,7 +86,6 @@ router.get('/users/:userId/logs', async (req, res) => {
 
         let log; 
         if (user && user.log) {
-            console.log('user log', user.log)
             log = user.log.map((el) => {
                 return {
                     description: el.description,
@@ -90,17 +93,18 @@ router.get('/users/:userId/logs', async (req, res) => {
                     date: el.date
                 } 
             });
-            console.log('after', log)
         }
 
-        res.json(
-            {
-                username: user.username,
-                _id: user._id,
-                log,
-                count: log.length
-          }
-          );
+        const response = {
+            _id: user._id.toString(),
+            username: user.username,
+            count: log.length,
+            log,
+      };
+
+      console.log('response', response);
+
+        res.json(response);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
